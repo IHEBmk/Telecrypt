@@ -775,7 +775,7 @@ def finalize_pair():
         return jsonify({"error": "UUID is required"}), 400
 
     try:
-        response = supabase.table('User').select('id').eq('uuid', uuid).execute()
+        response = supabase.table('User').select('id,password').eq('id', uuid).execute()
         if len(response.data) == 0:
             return jsonify({"error": "User not found"}), 404
         user_pass=response.data[0]['password']
@@ -822,7 +822,7 @@ def update_pair():
         return jsonify({"error": "UUID, signed_chats, and original_public are required"}), 400
 
     try:
-        response = supabase.table('User').select('id').eq('uuid', uuid).execute()
+        response = supabase.table('User').select('id,password').eq('id', uuid).execute()
         if len(response.data) == 0:
             return jsonify({"error": "User not found"}), 404
         user_pass=response.data[0]['password']
@@ -868,7 +868,7 @@ def get_new_public():
     if not my_uuid or not password:
         return jsonify({"error": "UUID is required"}), 400
 
-    response = supabase.table('User').select('id').eq('uuid', my_uuid).execute()
+    response = supabase.table('User').select('id,password').eq('id', my_uuid).execute()
     if len(response.data) == 0:
         return jsonify({"error": "User not found"}), 404
     user_pass=response.data[0]['password']
@@ -894,12 +894,13 @@ def add_new_device():
     data = request.get_json()
     uuid = data.get('uuid')
     password = data.get('password')
+    print(data)
     if not uuid or not password:
         return jsonify({"error": "UUID is required"}), 400
 
     # Insert the UUID into the pair table
     try:
-        response = supabase.table('User').select('id').eq('uuid', uuid).execute()
+        response = supabase.table('User').select('id,password').eq('id', uuid).execute()
         if len(response.data) == 0:
             return jsonify({"error": "User not found"}), 404
         user_pass=response.data[0]['password']
@@ -979,7 +980,7 @@ def update_new_device():
     uuid = data.get('uuid')
     public_key = data.get('public_key')
     password = data.get('password')
-    response = supabase.table('User').select('id').eq('uuid', uuid).execute()
+    response = supabase.table('User').select('id,password').eq('id', uuid).execute()
     if len(response.data) == 0:
         return jsonify({"error": "User not found"}), 404
     user_pass=response.data[0]['password']
