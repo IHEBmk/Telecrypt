@@ -770,16 +770,25 @@ def finalize_pair():
     # Get the UUID from the request
     data = request.get_json()
     uuid = data.get('uuid')
-
+    password = data.get('password')
     if not uuid:
         return jsonify({"error": "UUID is required"}), 400
 
     try:
+        response = supabase.table('User').select('id').eq('uuid', uuid).execute()
+        if len(response.data) == 0:
+            return jsonify({"error": "User not found"}), 404
+        user_pass=response.data[0]['password']
+        if user_pass != password:
+            return jsonify({"error": "Incorrect password"}), 401
         # Retrieve the pair record for the given UUID
-        response = supabase.table('pair').select('id', 'key', 'original_public').eq('user_id', uuid).execute()
+        response = supabase.table('pair').select('id', 'key', 'original_public,signature').eq('user_id', uuid).execute()
         if len(response.data) == 0:
             return jsonify({"error": "No pair found for the given UUID"}), 404
         
+        payload = jwt.decode(response.data[0]['signature'], PUBLIC_KEY, algorithms=["RS256"])
+        if password!= payload:
+            return jsonify({"error": "Incorrect person"}), 401
         # Get the pair details
         pair_data = response.data[0]
         signed_chats = pair_data.get('key')
@@ -808,15 +817,22 @@ def update_pair():
     uuid = data.get('uuid')
     signed_chats = data.get('signed_chats')
     original_public = data.get('original_public')
-    if not uuid or not signed_chats or not original_public:
+    password = data.get('password')
+    if not uuid or not signed_chats or not original_public or not password:
         return jsonify({"error": "UUID, signed_chats, and original_public are required"}), 400
 
     try:
+        response = supabase.table('User').select('id').eq('uuid', uuid).execute()
+        if len(response.data) == 0:
+            return jsonify({"error": "User not found"}), 404
+        user_pass=response.data[0]['password']
+        if user_pass != password:
+            return jsonify({"error": "Incorrect password"}), 401
         # Check if the pair with this UUID already exists
         response = supabase.table('pair').select('id').eq('user_id', uuid).execute()
 
         if len(response.data) > 0:
-            # Update the existing pair with new data
+            
             pair_id = response.data[0]['id']
             update_response = supabase.table('pair').update({
                 'key': signed_chats,
@@ -843,16 +859,26 @@ def update_pair():
 
 
 
-@app.route('/get_new_public', methods=['GET'])
+@app.route('/get_new_public', methods=['POST'])
 def get_new_public():
-    my_uuid = request.args.get('uuid')  
+    data = request.json
+    my_uuid = data.get('uuid')
+    password = data.get('password')
 
-    if not my_uuid:
+    if not my_uuid or not password:
         return jsonify({"error": "UUID is required"}), 400
 
-   
-    response = supabase.table('pair').select('new_device_public').eq('user_id', my_uuid).execute()
-
+    response = supabase.table('User').select('id').eq('uuid', my_uuid).execute()
+    if len(response.data) == 0:
+        return jsonify({"error": "User not found"}), 404
+    user_pass=response.data[0]['password']
+    if user_pass != password:
+        return jsonify({"error": "Incorrect password"}), 401
+    response = supabase.table('pair').select('new_device_public,signature').eq('user_id', my_uuid).execute()
+    payload = jwt.decode(response.data[0]['signature'], PUBLIC_KEY, algorithms=["RS256"])
+    if password!= payload:
+        return jsonify({"error": "Incorrect person"}), 401
+    
     if  not response.data or len(response.data) == 0:
         return jsonify({"error": "No data found for the given UUID"}), 404
 
@@ -867,14 +893,21 @@ def add_new_device():
     # Get the UUID from the request
     data = request.get_json()
     uuid = data.get('uuid')
-
-    if not uuid:
+    password = data.get('password')
+    if not uuid or not password:
         return jsonify({"error": "UUID is required"}), 400
 
     # Insert the UUID into the pair table
     try:
-        # Insert into 'pair' table with the provided UUID
-        response = supabase.table('pair').insert({'user_id': uuid}).execute()
+        response = supabase.table('User').select('id').eq('uuid', uuid).execute()
+        if len(response.data) == 0:
+            return jsonify({"error": "User not found"}), 404
+        user_pass=response.data[0]['password']
+        if user_pass != password:
+            return jsonify({"error": "Incorrect password"}), 401
+        
+        signature = jwt.encode(uuid, PRIVATE_KEY, algorithm="RS256")
+        response = supabase.table('pair').insert({'user_id': uuid,'signature':signature}).execute()
 
         # Check if the insertion was successful
         if response.data !=0:
@@ -945,13 +978,20 @@ def update_new_device():
 
     uuid = data.get('uuid')
     public_key = data.get('public_key')
-
+    password = data.get('password')
+    response = supabase.table('User').select('id').eq('uuid', uuid).execute()
+    if len(response.data) == 0:
+        return jsonify({"error": "User not found"}), 404
+    user_pass=response.data[0]['password']
+    if user_pass != password:
+        return jsonify({"error": "Incorrect password"}), 401
     if not uuid or not public_key:
         return jsonify({"error": "UUID or public_key missing"}), 400
-
+    signature = jwt.encode(password, PRIVATE_KEY, algorithm="RS256")
     # Update the new_device_public field in the pair table for the given uuid
     response = supabase.table('pair').update({
-        'new_device_public': public_key
+        'new_device_public': public_key,
+        'signature':signature
     }).eq('user_id', uuid).execute()
 
     if response.data:
@@ -960,4 +1000,3 @@ def update_new_device():
         return jsonify({"error": "Failed to update public key"}), 500
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-
