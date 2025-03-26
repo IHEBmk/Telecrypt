@@ -787,7 +787,7 @@ def finalize_pair():
             return jsonify({"error": "No pair found for the given UUID"}), 404
         
         payload = jwt.decode(response.data[0]['signature'], PUBLIC_KEY, algorithms=["RS256"])
-        if password!= payload:
+        if password!= payload['password']:
             return jsonify({"error": "Incorrect person"}), 401
         # Get the pair details
         pair_data = response.data[0]
@@ -876,7 +876,7 @@ def get_new_public():
         return jsonify({"error": "Incorrect password"}), 401
     response = supabase.table('pair').select('new_device_public,signature').eq('user_id', my_uuid).execute()
     payload = jwt.decode(response.data[0]['signature'], PUBLIC_KEY, algorithms=["RS256"])
-    if password!= payload:
+    if password!= payload['password']:
         return jsonify({"error": "Incorrect person"}), 401
     
     if  not response.data or len(response.data) == 0:
@@ -907,7 +907,7 @@ def add_new_device():
         if user_pass != password:
             return jsonify({"error": "Incorrect password"}), 401
         
-        signature = jwt.encode(uuid, PRIVATE_KEY, algorithm="RS256")
+        signature = jwt.encode({'uuid':uuid}, PRIVATE_KEY, algorithm="RS256")
         response = supabase.table('pair').insert({'user_id': uuid,'signature':signature}).execute()
 
         # Check if the insertion was successful
@@ -988,7 +988,7 @@ def update_new_device():
         return jsonify({"error": "Incorrect password"}), 401
     if not uuid or not public_key:
         return jsonify({"error": "UUID or public_key missing"}), 400
-    signature = jwt.encode(password, PRIVATE_KEY, algorithm="RS256")
+    signature = jwt.encode({'password':password}, PRIVATE_KEY, algorithm="RS256")
     # Update the new_device_public field in the pair table for the given uuid
     response = supabase.table('pair').update({
         'new_device_public': public_key,
