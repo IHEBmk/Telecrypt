@@ -1,0 +1,7 @@
+Flask
+Flask-Mail
+flask-talisman
+firebase-admin
+pyjwt
+supabase
+gunicorn

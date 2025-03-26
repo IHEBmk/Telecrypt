@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "841900506987",
+    "project_id": "telecrypt-8ffd5",
+    "storage_bucket": "telecrypt-8ffd5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:841900506987:android:7c65aa56ba6d3d1056d62e",
+        "android_client_info": {
+          "package_name": "com.example.chat_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMtrTPcr0SHED_SDltaiBqdZLj9WmWDe8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
