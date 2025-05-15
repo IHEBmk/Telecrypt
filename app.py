@@ -1139,6 +1139,69 @@ def update_new_device():
         app.logger.error(f"Error updating new device: {str(e)}")
         return jsonify({"error": "Failed to update new device"}), 500
 
+@app.route('/get_chat_key', methods=['POST'])
+@validate_request_json('chat_id', 'uuid', 'second_party', 'password')
+def get_chat_key():
+    try:
+        data = request.json
+        chat_id = data.get('chat_id')
+        uuid = data.get('uuid')
+        second_party = data.get('second_party')
+        password = data.get('password')
+        
+        # Verify user authentication
+        response = supabase.table('User').select('password,id').eq('id', uuid).execute()
+        if len(response.data) == 0:
+            return jsonify({"error": "User not found"}), 404
+            
+        user_stored_password = response.data[0]['password']
+        
+        # Verify password using bcrypt
+        if not verify_password(user_stored_password, password):
+            return jsonify({"error": "Authentication failed"}), 401
+            
+        # Fetch the chat from the database
+        response = supabase.table('chat').select('*').eq('uuid', chat_id).execute()
+        
+        if not response.data:
+            return jsonify({"error": "Chat not found"}), 404
+            
+        chat = response.data[0]
+        first_part = chat['first_part']
+        second_part = chat['second_part']
+        
+        # Verify that the user is part of this chat
+        if uuid != first_part and uuid != second_part:
+            return jsonify({"error": "User not part of this chat"}), 403
+            
+        # Find the associated chat request to get the encryption key
+        if (first_part == uuid and second_part == second_party) or (first_part == second_party and second_part == uuid):
+            # Find the accepted chat request
+            request_response = supabase.table('chat_request').select('*').eq('confirmed', 1).or_(
+                f'sender_uuid.eq.{first_part},sender_uuid.eq.{second_part}'
+            ).or_(
+                f'reciever_uuid.eq.{first_part},reciever_uuid.eq.{second_part}'
+            ).execute()
+            
+            if request_response.data:
+                for request in request_response.data:
+                    # Check if this is the request for the specific chat
+                    if ((request['sender_uuid'] == first_part and request['reciever_uuid'] == second_part) or
+                        (request['sender_uuid'] == second_part and request['reciever_uuid'] == first_part)):
+                        
+                        # Here we would extract the key from the Diffie-Hellman parameters
+                        # This would depend on how you're storing the key
+                        # For example, if you're storing parameters:
+                        
+                        # Return the key - you'll need to adjust this based on your actual key storage
+                        return jsonify({"chat_key": request['key_value']}), 200
+                        
+        return jsonify({"error": "Chat key not found"}), 404
+        
+    except Exception as e:
+        app.logger.error(f"Error getting chat key: {str(e)}")
+        return jsonify({"error": "Failed to get chat key"}), 500
+
 # Implementation for secure AES-GCM encryption helpers
 class SecureEncryption:
     @staticmethod
@@ -1180,6 +1243,8 @@ class SecureEncryption:
         except Exception as e:
             app.logger.error(f"Decryption error: {str(e)}")
             return None
+
+
 
 if __name__ == "__main__":
     # Check if running in production
