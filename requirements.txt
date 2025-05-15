@@ -1,7 +1,12 @@
-Flask
-Flask-Mail
+flask
+flask-mail
 flask-talisman
-firebase-admin
 pyjwt
+bcrypt
+python-dotenv
+cryptography
+waitress
+werkzeug
 supabase
+firebase-admin
 gunicorn
